@@ -1,0 +1,131 @@
+Metadata:
+  AWS::CloudFormation::Designer: {}
+Parameters:
+  VpcId:
+    Default: vpc-xxxxxx
+    Type: String
+    Description: VPC Id of your existing virtual private cloud (VPC)
+  Subnets:
+    Default: subnet-xxxxxx,subnet-xxxxxxx,subnet-xxxxx,subnet-xxxxxx,subnet-xxxxxx
+    Type: CommaDelimitedList
+    Description: The list of subnet id's in your region
+  InstanceType:
+    Description: WebServer EC2 Instance Type
+    Type: String
+    Default: t3.micro
+    AllowedValues:
+      - t3.nano
+      - t3.micro
+      - t3.small
+      - m1.large
+      - m1.xlarge
+      - m2.xlarge
+      - m2.2xlarge
+      - m2.4xlarge
+      - m3.medium
+      - m3.large
+      - m3.xlarge
+      - m3.2xlarge
+      - m4.large
+      - m4.xlarge
+    ConstraintDescription: must be a valid EC2 instance type
+  LatestAmiId:
+    Description: EC2 Image Id from this region
+    Type: AWS::EC2::Image::Id
+    Default: ami-xxxxxxxxxxxxxxx
+  DBName:
+    Default: Oracledb
+    Type: String
+    Description: DB Name of the rds instance
+    MinLength: '1'
+    MaxLength: '64'
+    AllowedPattern: '[a-zA-Z][a-zA-Z0-9]*'
+    ConstraintDescription: Must begin with a letter and contain only alphanumeric characters
+  DBUsername:
+    Default: quantum
+    NoEcho: 'True'
+    Type: String
+    Description: DB User name for admin account
+    MinLength: '1'
+    MaxLength: '16'
+    AllowedPattern: '[a-zA-Z][a-zA-Z0-9]*'
+    ConstraintDescription: must begin with a letter and contain only alphanumeric characters.
+  DBPassword:
+    Default: quantum1
+    NoEcho: 'true'
+    Description: The Oracle database admin account password
+    Type: String
+    MinLength: '8'
+    MaxLength: '41'
+    AllowedPattern: '[a-zA-Z0-9]*'
+    ConstraintDescription: must contain only alphanumeric characters.
+Mappings:
+  AWSInstanceType2Arch:
+    r4.large:
+      ArchType: '64'
+Resources:
+  OrclDBSubnetGroup:
+    Type: AWS::RDS::DBSubnetGroup
+    Properties:
+      DBSubnetGroupDescription: Subnets available for RDS instances
+      SubnetIds:
+        Ref: Subnets
+  OrclVPCSecurityGroup:
+    Type: AWS::RDS::DBSecurityGroup
+    Properties:
+      GroupDescription: Security Group for RDS DB Instance
+      EC2VpcId:
+        Ref: VpcId
+      DBSecurityGroupIngress:
+        - EC2SecurityGroupId: sg-bfc9dcda
+          EC2SecurityGroupOwnerId: '212216974968'
+  OraDB:
+    Type: AWS::RDS::DBInstance
+    Properties:
+      DBName:
+        Ref: DBName
+      DBInstanceIdentifier: quantum
+      DBSubnetGroupName:
+        Ref: OrclDBSubnetGroup
+      DBSecurityGroups:
+        - Ref: OrclVPCSecurityGroup
+      AllocatedStorage: '100'
+      StorageType: gp2
+      DBInstanceClass: db.r4.large
+      Engine: oracle-ee
+      EngineVersion: 12.2.0.1.ru-2019-10.rur-2019-10.r1
+      LicenseModel: bring-your-own-license
+      Port: '1521'
+      PubliclyAccessible: true | false
+      MasterUsername:
+        Ref: DBUsername
+      MasterUserPassword:
+        Ref: DBPassword
+      DBParameterGroupName:
+        Ref: OrclRDSParamGroup
+      MultiAZ: 'false'
+    DeletionPolicy: Snapshot
+  OrclRDSParamGroup:
+    Type: AWS::RDS::DBParameterGroup
+    Properties:
+      Family: oracle-ee-12.2
+      Description: Oracle DB Parameter Group
+      Parameters:
+        compatible: 12.2.0.1
+Outputs:
+  JDBCConnectionString:
+    Description: JDBC connect string for the Oracle database
+    Value:
+      Fn::Join:
+        - ''
+        - - jdbc:oracle://
+          - Fn::GetAtt:
+              - OraDB
+              - Endpoint.Address
+          - ':'
+          - Fn::GetAtt:
+              - OraDB
+              - Endpoint.Port
+          - /
+          - Ref: DBName
+

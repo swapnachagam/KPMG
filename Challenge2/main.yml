@@ -1,0 +1,17 @@
+---
+- hosts: localhost
+  vars_files:
+     - "vars/main.yml"
+
+  tasks:
+
+  - ec2_instance_facts:
+     region:  "{{ region }}"
+     filters:
+       "tag:Name" : "{{ instance_name }}"
+
+    register: ec2_metadata
+  - debug:
+       msg: "{{ ec2_metadata }}" # Meta data of the instance is printed in Json format 
+  - debug:
+       msg: "{{ ec2_metadata.instances | map(attribute=instancefact ) | list }}" # Based on the input variable, particular detail will be displayed here 
